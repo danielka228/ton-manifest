@@ -3,51 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Подключение кошелька</title>
+  <title>TON Wallet Assistant</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
   <style>
-    body {
-      font-family: -apple-system, Roboto, sans-serif;
-      text-align: center;
-      padding: 32px 16px;
-      background: var(--tg-theme-bg-color, #ffffff);
-      color: var(--tg-theme-text-color, #000000);
-    }
-    #ton-connect { display: flex; justify-content: center; margin: 24px 0; }
+    body{font-family:system-ui,sans-serif;text-align:center;padding:32px 16px;background:var(--tg-theme-bg-color,#10131c);color:var(--tg-theme-text-color,#fff)}
+    #ton-connect{display:flex;justify-content:center;margin:24px 0}
+    #status{overflow-wrap:anywhere}
   </style>
 </head>
 <body>
   <h2>TON Wallet Assistant</h2>
   <div id="ton-connect"></div>
-  <p id="status">Нажми «Connect Wallet» и выбери кошелёк.</p>
-
+  <p id="status">Подключите кошелёк через TON Connect.</p>
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
-
-    const status = document.getElementById("status");
-
-    const ui = new TON_CONNECT_UI.TonConnectUI({
-      manifestUrl: "https://danielka228.github.io/ton-manifest/tonconnect-manifest.json",
-      buttonRootId: "ton-connect",
-      actionsConfiguration: {
-        twaReturnUrl: "https://t.me/MyTonWalletAssistantBot"
-      }
+    const tg=window.Telegram?.WebApp;
+    const status=document.getElementById("status");
+    let sent=false;
+    if(tg){tg.ready();tg.expand();}
+    const ui=new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl:"https://danielka228.github.io/ton-manifest/tonconnect-manifest.json",
+      buttonRootId:"ton-connect"
     });
-
-    ui.onStatusChange(function (wallet) {
-      if (wallet && wallet.account) {
-        if (tg.initData) {
-          status.textContent = "Кошелёк подключён, отправляю адрес боту…";
-          setTimeout(function () {
-            tg.sendData(JSON.stringify({ address: wallet.account.address }));
-          }, 600);
-        } else {
-          status.textContent = "Подключено, но страница открыта не из бота.";
-        }
+    ui.onStatusChange(wallet=>{
+      if(!wallet?.account)return;
+      const address=wallet.account.address;
+      status.textContent="Кошелёк подключён: "+address.slice(0,6)+"…"+address.slice(-5);
+      if(!tg || !tg.initData){
+        status.textContent+=" — откройте приложение кнопкой Mini App из чата с ботом.";
+        return;
       }
+      if(sent)return;
+      sent=true;
+      status.textContent="Кошелёк подключён. Возвращаю адрес боту…";
+      tg.sendData(JSON.stringify({address}));
     });
   </script>
 </body>

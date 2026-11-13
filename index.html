@@ -29,7 +29,7 @@
       if(!wallet?.account)return;
       const address=wallet.account.address;
       status.textContent="Кошелёк подключён: "+address.slice(0,6)+"…"+address.slice(-5);
-      if(!tg || !tg.initData){
+      if(!tg){
         status.textContent+=" — откройте приложение кнопкой Mini App из чата с ботом.";
         return;
       }

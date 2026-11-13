@@ -1,43 +1,44 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TON Wallet Assistant</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
-  <style>
-    body{font-family:system-ui,sans-serif;text-align:center;padding:32px 16px;background:var(--tg-theme-bg-color,#10131c);color:var(--tg-theme-text-color,#fff)}
-    #ton-connect{display:flex;justify-content:center;margin:24px 0}
-    #status{overflow-wrap:anywhere}
-  </style>
-</head>
-<body>
-  <h2>TON Wallet Assistant</h2>
-  <div id="ton-connect"></div>
-  <p id="status">Подключите кошелёк через TON Connect.</p>
-  <script>
-    const tg=window.Telegram?.WebApp;
-    const status=document.getElementById("status");
-    let sent=false;
-    if(tg){tg.ready();tg.expand();}
-    const ui=new TON_CONNECT_UI.TonConnectUI({
-      manifestUrl:"https://danielka228.github.io/ton-manifest/tonconnect-manifest.json",
-      buttonRootId:"ton-connect"
-    });
-    ui.onStatusChange(wallet=>{
-      if(!wallet?.account)return;
-      const address=wallet.account.address;
-      status.textContent="Кошелёк подключён: "+address.slice(0,6)+"…"+address.slice(-5);
-      if(!tg){
-        status.textContent+=" — откройте приложение кнопкой Mini App из чата с ботом.";
-        return;
-      }
-      if(sent)return;
-      sent=true;
-      status.textContent="Кошелёк подключён. Возвращаю адрес боту…";
-      tg.sendData(JSON.stringify({address}));
-    });
-  </script>
-</body>
-</html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10131c"><title>TON Wallet Assistant</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#10131c;--card:#1b2030;--text:#f5f7ff;--muted:#a7afc4;--blue:#4388f5;--line:#2a3143}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,sans-serif;padding:calc(20px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}main{max-width:480px;margin:auto}.brand{display:flex;align-items:center;gap:12px;margin:8px 0 20px}.logo{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:linear-gradient(145deg,#68b9ff,#5270f4);font-size:25px}h1{font-size:20px;margin:0}p{color:var(--muted);line-height:1.45;margin:6px 0}.panel{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin:12px 0}.label{font-size:13px;color:var(--muted)}.balance{font-size:28px;font-weight:700;margin:5px 0 12px}.row{display:flex;gap:9px;flex-wrap:wrap}button,input{border:0;border-radius:13px;padding:13px;background:#293249;color:var(--text);font:600 15px system-ui;width:100%;margin-top:8px}button{cursor:pointer}button.primary{background:var(--blue)}button:disabled{opacity:.5}input{background:#111621;border:1px solid var(--line);font-weight:400}#ton-connect{min-height:45px;margin-top:8px}#status{font-size:13px;min-height:20px;color:var(--muted);overflow-wrap:anywhere}.small{font-size:12px}.fine{font-size:12px;text-align:center;margin:18px}
+</style></head>
+<body><main>
+<header class="brand"><div class="logo">💎</div><div><h1>TON Wallet Assistant</h1><p>Кошелёк под вашим контролем</p></div></header>
+<section class="panel"><div class="label">Баланс TON</div><div class="balance" id="balance">Подключите кошелёк</div><div id="ton-connect"></div><div id="address" class="small"></div><div id="status" role="status" aria-live="polite"></div><button id="link" class="primary" hidden>Связать кошелёк с ботом</button></section>
+<section class="panel"><div class="label">Получить TON</div><p>Ваш адрес для получения появится после подключения.</p><button id="copy" disabled>Скопировать адрес</button></section>
+<section class="panel"><div class="label">Отправить TON</div><input id="destination" placeholder="Адрес получателя (EQ… или UQ…)" autocomplete="off"><input id="amount" inputmode="decimal" placeholder="Сумма TON" autocomplete="off"><button id="send" class="primary" disabled>Продолжить в кошельке</button><p class="small">Перед отправкой проверьте адрес и сумму. Подписание выполняется только в вашем кошельке.</p></section>
+<section class="panel"><button id="history">Показать историю в чате с ботом</button></section>
+<p class="fine">Seed-фразы и приватные ключи не запрашиваются и не сохраняются.</p></main>
+<script>
+const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();
+const $=s=>document.querySelector(s),status=$('#status'),balance=$('#balance');let wallet=null,rawAddress='';
+const API='https://ton-wallet-assistant.hhoh7327.workers.dev';
+const setStatus=s=>status.textContent=s;
+try{
+ const ui=new TON_CONNECT_UI.TonConnectUI({manifestUrl:'https://danielka228.github.io/ton-manifest/tonconnect-manifest.json',buttonRootId:'ton-connect'});
+ ui.onStatusChange(async w=>{
+  wallet=w||null;
+  if(!wallet?.account){rawAddress='';balance.textContent='Подключите кошелёк';$('#address').textContent='';$('#copy').disabled=true;$('#send').disabled=true;$('#link').hidden=true;return}
+  rawAddress=wallet.account.address;const friendly=TON_CONNECT_UI.toUserFriendlyAddress(rawAddress);
+  $('#address').textContent='Адрес: '+friendly;$('#copy').disabled=false;$('#send').disabled=false;$('#link').hidden=false;
+  try{const r=await fetch(API+'/api/balance?address='+encodeURIComponent(rawAddress));const j=await r.json();if(!r.ok)throw Error();balance.textContent=(Number(j.balanceNanoton)/1e9).toFixed(4)+' TON'}catch{balance.textContent='Не удалось загрузить баланс'}
+  setStatus('Кошелёк подключён. Переводы подтверждаются в приложении кошелька.');
+ });
+ $('#link').addEventListener('click',()=>{if(!tg?.sendData){setStatus('Откройте Mini App кнопкой из чата с ботом.');return}tg.sendData(JSON.stringify({address:rawAddress}))});
+ $('#copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(TON_CONNECT_UI.toUserFriendlyAddress(rawAddress));setStatus('Адрес скопирован')}catch{setStatus(TON_CONNECT_UI.toUserFriendlyAddress(rawAddress))}});
+ $('#send').addEventListener('click',async()=>{
+  if(!wallet){setStatus('Сначала подключите кошелёк.');return}
+  const to=$('#destination').value.trim(),amount=$('#amount').value.trim();
+  if(!/^(EQ|UQ)[A-Za-z0-9_-]{46}$/.test(to)){setStatus('Проверьте адрес TON получателя.');return}
+  if(!/^(0|[1-9][0-9]*)(\.[0-9]{1,9})?$/.test(amount)||Number(amount)<=0){setStatus('Введите сумму больше нуля (до 9 знаков после точки).');return}
+  const parts=amount.split('.');const nano=(BigInt(parts[0])*1000000000n+BigInt(((parts[1]||'')+'000000000').slice(0,9))).toString();
+  try{setStatus('Ожидаю подтверждение в кошельке…');await ui.sendTransaction({validUntil:Math.floor(Date.now()/1000)+300,network:'-239',messages:[{address:to,amount:nano}]});setStatus('Запрос отправлен кошельком. Проверьте историю транзакций.')}catch(e){setStatus('Перевод отменён или не выполнен в кошельке.')}
+ });
+ $('#history').addEventListener('click',()=>{if(tg?.sendData)tg.sendData(JSON.stringify({action:'history'}));else setStatus('Откройте Mini App из чата с ботом.')});
+}catch(e){setStatus('TON Connect не загрузился. Обновите приложение и попробуйте ещё раз.')}
+</script></body></html>
